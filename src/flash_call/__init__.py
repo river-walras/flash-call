@@ -44,22 +44,25 @@ class ErrorResponseFull(TypedDict):
 
 # Global integration key storage
 _integration_key: Optional[str] = None
+_user: Optional[str] = None
 
 # Base URL for Flashduty API
 BASE_URL = "https://api.flashcat.cloud/event/push/alert/standard"
 
 
-def set_key(key: str) -> None:
+def set_key(key: str, user: Optional[str] = None) -> None:
     """Set the global integration key for Flashduty API.
 
     Args:
         key: The integration key obtained from Flashduty after adding integration.
+        user: Optional user identifier to prepend to alert titles.
 
     Example:
-        >>> set_key("5c4cfe6e1ae15dfeb73bfc70181f786b073")
+        >>> set_key("5c4cfe6e1ae15dfeb73bfc70181f786b073", user="admin")
     """
-    global _integration_key
+    global _integration_key, _user
     _integration_key = key
+    _user = user
 
 
 def get_key() -> Optional[str]:
@@ -69,6 +72,15 @@ def get_key() -> Optional[str]:
         The current integration key or None if not set.
     """
     return _integration_key
+
+
+def get_user() -> Optional[str]:
+    """Get the current user identifier.
+
+    Returns:
+        The current user identifier or None if not set.
+    """
+    return _user
 
 
 def push_alert(
@@ -116,6 +128,10 @@ def push_alert(
     key = integration_key or _integration_key
     if not key:
         raise ValueError("Integration key must be set using set_key() or provided as parameter")
+
+    # Prepend user to title_rule if set
+    if _user is not None:
+        title_rule = f"{_user} {title_rule}"
 
     # Build payload
     payload: Dict = {
@@ -191,6 +207,10 @@ async def push_alert_async(
     if not key:
         raise ValueError("Integration key must be set using set_key() or provided as parameter")
 
+    # Prepend user to title_rule if set
+    if _user is not None:
+        title_rule = f"{_user} {title_rule}"
+
     # Build payload
     payload: Dict = {
         "title_rule": title_rule,
@@ -222,6 +242,7 @@ async def push_alert_async(
 __all__ = [
     "set_key",
     "get_key",
+    "get_user",
     "push_alert",
     "push_alert_async",
     "EventStatus",
