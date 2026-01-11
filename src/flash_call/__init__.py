@@ -4,8 +4,12 @@ A Python SDK for pushing alert events to Flashduty using standard HTTP protocol.
 Supports both synchronous and asynchronous operations.
 """
 
-from typing import Dict, List, Literal, Optional, TypedDict
+from typing import Dict, List, Literal, Optional, TypedDict, Union
 import httpx
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 # Type definitions
@@ -40,6 +44,11 @@ class ErrorResponseFull(TypedDict):
     """Full error response structure."""
     request_id: str
     error: ErrorResponse
+
+
+class SimpleErrorResponse(TypedDict):
+    """Simple error response structure for local errors."""
+    error: str
 
 
 # Global integration key storage
@@ -91,7 +100,7 @@ def push_alert(
     labels: Optional[Dict[str, str]] = None,
     images: Optional[List[Image]] = None,
     integration_key: Optional[str] = None,
-) -> SuccessResponse:
+) -> Union[SuccessResponse, SimpleErrorResponse]:
     """Push an alert event to Flashduty (synchronous version).
 
     Args:
@@ -104,11 +113,8 @@ def push_alert(
         integration_key: Optional integration key, uses global key if not provided.
 
     Returns:
-        SuccessResponse with request_id and alert_key.
-
-    Raises:
-        ValueError: If no integration key is set or provided.
-        httpx.HTTPStatusError: If the API returns an error status code.
+        SuccessResponse with request_id and alert_key on success.
+        SimpleErrorResponse with error message on failure.
 
     Example:
         >>> set_key("your-integration-key")
@@ -149,15 +155,32 @@ def push_alert(
         payload["images"] = images
 
     # Make request
-    with httpx.Client() as client:
-        response = client.post(
-            BASE_URL,
-            params={"integration_key": key},
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        response.raise_for_status()
-        return response.json()
+    try:
+        with httpx.Client() as client:
+            response = client.post(
+                BASE_URL,
+                params={"integration_key": key},
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            logger.info(f"Alert pushed successfully: {response.text}")
+            return response.json()
+
+    except httpx.HTTPStatusError as e:
+        error_msg = f"HTTP error {e.response.status_code}: {e.response.reason_phrase}"
+        logger.error(f"Failed to push alert: {error_msg}")
+        return {"error": error_msg}
+
+    except httpx.RequestError as e:
+        error_msg = f"Request error: {str(e)}"
+        logger.error(f"Failed to push alert: {error_msg}")
+        return {"error": error_msg}
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Failed to push alert: {error_msg}")
+        return {"error": error_msg}
 
 
 async def push_alert_async(
@@ -168,7 +191,7 @@ async def push_alert_async(
     labels: Optional[Dict[str, str]] = None,
     images: Optional[List[Image]] = None,
     integration_key: Optional[str] = None,
-) -> SuccessResponse:
+) -> Union[SuccessResponse, SimpleErrorResponse]:
     """Push an alert event to Flashduty (asynchronous version).
 
     Args:
@@ -181,11 +204,8 @@ async def push_alert_async(
         integration_key: Optional integration key, uses global key if not provided.
 
     Returns:
-        SuccessResponse with request_id and alert_key.
-
-    Raises:
-        ValueError: If no integration key is set or provided.
-        httpx.HTTPStatusError: If the API returns an error status code.
+        SuccessResponse with request_id and alert_key on success.
+        SimpleErrorResponse with error message on failure.
 
     Example:
         >>> import asyncio
@@ -227,15 +247,32 @@ async def push_alert_async(
         payload["images"] = images
 
     # Make request
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            BASE_URL,
-            params={"integration_key": key},
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        response.raise_for_status()
-        return response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                BASE_URL,
+                params={"integration_key": key},
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            logger.info(f"Alert pushed successfully: {response.text}")
+            return response.json()
+
+    except httpx.HTTPStatusError as e:
+        error_msg = f"HTTP error {e.response.status_code}: {e.response.reason_phrase}"
+        logger.error(f"Failed to push alert: {error_msg}")
+        return {"error": error_msg}
+
+    except httpx.RequestError as e:
+        error_msg = f"Request error: {str(e)}"
+        logger.error(f"Failed to push alert: {error_msg}")
+        return {"error": error_msg}
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Failed to push alert: {error_msg}")
+        return {"error": error_msg}
 
 
 # Public API
@@ -251,4 +288,5 @@ __all__ = [
     "SuccessResponse",
     "ErrorResponse",
     "ErrorResponseFull",
+    "SimpleErrorResponse",
 ]
