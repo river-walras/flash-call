@@ -54,24 +54,27 @@ class SimpleErrorResponse(TypedDict):
 # Global integration key storage
 _integration_key: Optional[str] = None
 _user: Optional[str] = None
+_strategy: Optional[str] = None
 
 # Base URL for Flashduty API
 BASE_URL = "https://api.flashcat.cloud/event/push/alert/standard"
 
 
-def set_key(key: str, user: Optional[str] = None) -> None:
+def set_key(api_key: str, user: Optional[str] = None, strategy: Optional[str] = None) -> None:
     """Set the global integration key for Flashduty API.
 
     Args:
-        key: The integration key obtained from Flashduty after adding integration.
-        user: Optional user identifier to prepend to alert titles.
+        api_key: The integration key obtained from Flashduty after adding integration.
+        user: Optional user identifier to attach to alert labels.
+        strategy: Optional strategy identifier to attach to alert labels.
 
     Example:
-        >>> set_key("5c4cfe6e1ae15dfeb73bfc70181f786b073", user="admin")
+        >>> set_key("5c4cfe6e1ae15dfeb73bfc70181f786b073", user="admin", strategy="default")
     """
-    global _integration_key, _user
-    _integration_key = key
+    global _integration_key, _user, _strategy
+    _integration_key = api_key
     _user = user
+    _strategy = strategy
 
 
 def get_key() -> Optional[str]:
@@ -90,6 +93,15 @@ def get_user() -> Optional[str]:
         The current user identifier or None if not set.
     """
     return _user
+
+
+def get_strategy() -> Optional[str]:
+    """Get the current strategy identifier.
+
+    Returns:
+        The current strategy identifier or None if not set.
+    """
+    return _strategy
 
 
 def push_alert(
@@ -135,10 +147,6 @@ def push_alert(
     if not key:
         raise ValueError("Integration key must be set using set_key() or provided as parameter")
 
-    # Prepend user to title_rule if set
-    if _user is not None:
-        title_rule = f"{_user} {title_rule}"
-
     # Build payload
     payload: Dict = {
         "title_rule": title_rule,
@@ -149,8 +157,13 @@ def push_alert(
         payload["alert_key"] = alert_key
     if description is not None:
         payload["description"] = description
-    if labels is not None:
-        payload["labels"] = labels
+    effective_labels: Dict[str, str] = dict(labels) if labels is not None else {}
+    if _user is not None:
+        effective_labels["user_id"] = _user
+    if _strategy is not None:
+        effective_labels["strategy_id"] = _strategy
+    if effective_labels:
+        payload["labels"] = effective_labels
     if images is not None:
         payload["images"] = images
 
@@ -227,10 +240,6 @@ async def push_alert_async(
     if not key:
         raise ValueError("Integration key must be set using set_key() or provided as parameter")
 
-    # Prepend user to title_rule if set
-    if _user is not None:
-        title_rule = f"{_user} {title_rule}"
-
     # Build payload
     payload: Dict = {
         "title_rule": title_rule,
@@ -241,8 +250,13 @@ async def push_alert_async(
         payload["alert_key"] = alert_key
     if description is not None:
         payload["description"] = description
-    if labels is not None:
-        payload["labels"] = labels
+    effective_labels: Dict[str, str] = dict(labels) if labels is not None else {}
+    if _user is not None:
+        effective_labels["user_id"] = _user
+    if _strategy is not None:
+        effective_labels["strategy_id"] = _strategy
+    if effective_labels:
+        payload["labels"] = effective_labels
     if images is not None:
         payload["images"] = images
 
@@ -280,6 +294,7 @@ __all__ = [
     "set_key",
     "get_key",
     "get_user",
+    "get_strategy",
     "push_alert",
     "push_alert_async",
     "EventStatus",

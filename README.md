@@ -93,12 +93,14 @@ push_alert(
 
 ## API Reference
 
-### `set_key(key: str) -> None`
+### `set_key(api_key: str, user: str | None = None, strategy: str | None = None) -> None`
 
 Set the global integration key for Flashduty API.
 
 **Parameters:**
-- `key`: The integration key obtained from Flashduty after adding integration
+- `api_key`: The integration key obtained from Flashduty after adding integration
+- `user` (optional): User identifier to attach to alert labels as `user_id`
+- `strategy` (optional): Strategy identifier to attach to alert labels as `strategy_id`
 
 ### `push_alert(...) -> SuccessResponse`
 
